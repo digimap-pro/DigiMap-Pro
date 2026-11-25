@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "io.github.digimap_pro.twa",
+        "sha256_cert_fingerprints": ["7F:F2:18:12:6D:35:AC:81:88:D6:F8:60:E2:44:1C:CA:99:BB:8C:B7:A4:AF:AC:37:E8:2E:41:03:A9:7F:4E:20"]
+      }
+    }]
