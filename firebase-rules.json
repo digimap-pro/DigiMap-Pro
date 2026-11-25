@@ -1,0 +1,32 @@
+{
+  "rules": {
+    "mouzas": {
+      ".read": true,
+      ".write": "auth != null"
+    },
+    "users": {
+      ".read": "auth != null",
+      ".write": "auth != null",
+      "$uid": {
+        ".read": true,
+        "deviceId": {
+          ".write": "auth != null || !data.exists() || data.val() == ''"
+        },
+        "deviceInfo": {
+          ".write": "auth != null || !data.exists() || data.val() == ''"
+        },
+        "devices": {
+          "$devId": {
+            ".write": "auth != null || (!data.exists() && newData.child('blocked').val() != true)",
+            "lastSeen": {
+              ".write": "auth != null || data.parent().exists()"
+            }
+          }
+        },
+        "lastSeen": {
+          ".write": true
+        }
+      }
+    }
+  }
+}

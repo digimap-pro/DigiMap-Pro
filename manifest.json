@@ -1,0 +1,25 @@
+{
+  "name": "DigiMap Pro",
+  "short_name": "DigiMap Pro",
+  "description": "DigiMap Pro \u2014 Secure Professional Mouza, Murabba & Killa Mapping App",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#091936",
+  "theme_color": "#0d63b0",
+  "icons": [
+    {
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
