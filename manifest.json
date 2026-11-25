@@ -1,7 +1,7 @@
 {
   "name": "DigiMap",
   "short_name": "DigiMap",
-  "description": "Digital Mouza, Murabba & Killa Mapping App (Chak 158-P to 162-P)",
+  "description": "Secure Professional Mouza, Murabba & Killa Mapping App",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

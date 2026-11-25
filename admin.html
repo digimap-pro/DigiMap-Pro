@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>DigiMap Admin Panel</title>
+  <link rel="icon" type="image/png" href="./icon-192.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+
+  <script src="./firebase-config.js"></script>
+  <script src="./default-data.js"></script>
+
+  <style>
+    :root {
+      --blue: #0d63b0;
+      --blue-dark: #1e3a8a;
+      --bg: #f1f5f9;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --green: #16a34a;
+      --red: #dc2626;
+      --amber: #d97706;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* Admin Login Screen */
+    #adminAuth {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    #adminAuth.hidden { display: none; }
+
+    .login-card {
+      width: 100%;
+      max-width: 400px;
+      background: #fff;
+      border-radius: 20px;
+      padding: 28px 24px;
+      box-shadow: 0 14px 40px rgba(15, 23, 42, 0.12);
+      border: 1px solid var(--border);
+      text-align: center;
+    }
+    .badge {
+      width: 56px; height: 56px; border-radius: 15px;
+      background: linear-gradient(135deg, #1d4ed8, #0f172a);
+      color: #fff; font-size: 22px; font-weight: 800;
+      display: inline-flex; align-items: center; justify-content: center;
+      margin-bottom: 12px;
+    }
+    .login-card h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .login-card p { font-size: 13px; color: var(--muted); margin-bottom: 18px; }
+
+    .alert {
+      display: none;
+      background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;
+      border-radius: 10px; padding: 10px 12px; font-size: 12.5px; font-weight: 600;
+      text-align: left; margin-bottom: 14px; line-height: 1.45;
+    }
+    .alert.show { display: block; }
+
+    .field { text-align: left; margin-bottom: 12px; }
+    .field label { display: block; font-size: 11.5px; font-weight: 700; color: #334155; margin-bottom: 5px; text-transform: uppercase; }
+    .field input, .field select {
+      width: 100%; height: 42px; padding: 0 12px;
+      border: 1.5px solid #cbd5e1; border-radius: 9px;
+      font-size: 13.5px; outline: none; background: #f8fafc; color: var(--text);
+    }
+    .field input:focus, .field select:focus { border-color: var(--blue); background: #fff; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 10px 15px; border-radius: 10px; border: none;
+      font-size: 13px; font-weight: 700; cursor: pointer; text-decoration: none;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary { background: linear-gradient(180deg, #1d4ed8, #1e3a8a); color: #fff; }
+    .btn-green { background: #16a34a; color: #fff; }
+    .btn-red { background: #dc2626; color: #fff; }
+    .btn-amber { background: #f59e0b; color: #fff; }
+    .btn-light { background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1; }
+    .btn-sm { padding: 6px 10px; font-size: 12px; border-radius: 8px; }
+    .btn-full { width: 100%; height: 44px; font-size: 14px; }
+
+    /* Admin Dashboard */
+    #adminApp { display: none; padding-bottom: 40px; }
+    #adminApp.visible { display: block; }
+
+    .header {
+      background: linear-gradient(180deg, #0f67b6, #0b589e);
+      color: #fff;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    }
+    .header h2 { font-size: 17px; font-weight: 800; }
+    .header-sub { font-size: 11px; opacity: 0.85; }
+
+    .container { max-width: 980px; margin: 0 auto; padding: 14px; }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .stat-box {
+      background: #fff; border: 1px solid var(--border); border-radius: 13px;
+      padding: 13px 14px; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+    }
+    .stat-num { font-size: 24px; font-weight: 800; color: var(--blue); }
+    .stat-lbl { font-size: 11.5px; color: var(--muted); font-weight: 600; margin-top: 2px; }
+
+    /* Tabs */
+    .tabs {
+      display: flex; gap: 8px; margin-bottom: 16px;
+      background: #fff; padding: 5px; border-radius: 12px; border: 1px solid var(--border);
+    }
+    .tab-btn {
+      flex: 1; padding: 10px; border: none; border-radius: 9px;
+      background: transparent; color: var(--muted); font-size: 13.5px; font-weight: 700; cursor: pointer;
+    }
+    .tab-btn.active { background: var(--blue); color: #fff; }
+
+    .panel { display: none; }
+    .panel.active { display: block; }
+
+    .card {
+      background: #fff; border: 1px solid var(--border); border-radius: 15px;
+      padding: 16px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .card-title {
+      font-size: 15.5px; font-weight: 800; margin-bottom: 12px;
+      display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px;
+    }
+
+    .chak-checks {
+      display: flex; flex-wrap: wrap; gap: 8px; padding: 8px;
+      background: #f8fafc; border: 1px solid var(--border); border-radius: 10px;
+    }
+    .chak-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 10px; background: #fff; border: 1px solid #cbd5e1;
+      border-radius: 8px; font-size: 12.5px; font-weight: 600; cursor: pointer;
+    }
+
+    /* User Cards */
+    .user-list { display: flex; flex-direction: column; gap: 10px; }
+    .user-card {
+      border: 1px solid var(--border); border-radius: 13px; padding: 14px;
+      background: #ffffff;
+    }
+    .user-top {
+      display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .user-name { font-size: 15px; font-weight: 800; }
+    .user-email { font-size: 12.5px; color: var(--muted); }
+
+    .status-pill {
+      font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 999px;
+      text-transform: uppercase;
+    }
+    .st-active { background: #dcfce7; color: #15803d; }
+    .st-expired { background: #fef3c7; color: #b45309; }
+    .st-blocked { background: #fee2e2; color: #b91c1c; }
+
+    .user-meta {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 6px 12px; font-size: 12px; color: #334155;
+      background: #f8fafc; padding: 9px 11px; border-radius: 9px; margin-bottom: 10px;
+    }
+    .user-meta b { color: #0f172a; }
+
+    .user-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* Mouza List */
+    .mouza-card {
+      border: 1px solid var(--border); border-radius: 12px; padding: 13px; margin-bottom: 10px;
+      background: #fff;
+    }
+    .mouza-head {
+      display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .murabba-tags {
+      display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;
+      max-height: 220px; overflow-y: auto; padding-top: 8px; border-top: 1px solid #f1f5f9;
+    }
+    .m-tag {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 7px;
+      padding: 4px 8px; font-size: 12px; font-weight: 700;
+    }
+    .m-tag button {
+      border: none; background: #fee2e2; color: #b91c1c; border-radius: 4px;
+      width: 18px; height: 18px; font-size: 11px; font-weight: 800; cursor: pointer;
+    }
+
+    .toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: #0f172a; color: #fff; padding: 10px 18px; border-radius: 999px;
+      font-size: 13px; font-weight: 600; z-index: 9999; opacity: 0; pointer-events: none;
+      transition: opacity 0.2s; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+    .toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- ==================== ADMIN LOGIN ==================== -->
+  <div id="adminAuth">
+    <div class="login-card">
+      <div class="badge">🛡️</div>
+      <h1>DigiMap Admin</h1>
+      <p>Sign in with your Firebase Admin Gmail &amp; Password</p>
+
+      <div class="alert" id="adminAlert"></div>
+
+      <form id="adminLoginForm">
+        <div class="field">
+          <label>Admin Email (Firebase Auth)</label>
+          <input type="email" id="adminEmail" placeholder="yourgmail@gmail.com" required />
+        </div>
+        <div class="field">
+          <label>Admin Password</label>
+          <input type="password" id="adminPass" placeholder="Enter admin password" required />
+        </div>
+        <button type="submit" class="btn btn-primary btn-full" id="adminLoginBtn">Sign In to Admin Panel</button>
+      </form>
+
+      <div style="margin-top:14px;">
+        <a href="./index.html" style="font-size:12.5px;color:#0d63b0;font-weight:700;text-decoration:none;">← Back to DigiMap App</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== ADMIN DASHBOARD ==================== -->
+  <div id="adminApp">
+    <header class="header">
+      <div>
+        <h2>🛡️ DigiMap Admin Panel</h2>
+        <div class="header-sub" id="adminSignedAs">Admin</div>
+      </div>
+      <div style="display:flex;gap:7px;">
+        <a href="./index.html" class="btn btn-light btn-sm">🗺️ Open Map</a>
+        <button class="btn btn-red btn-sm" id="adminLogoutBtn">Logout</button>
+      </div>
+    </header>
+
+    <div class="container">
+      <!-- Live Stats -->
+      <div class="stats-grid">
+        <div class="stat-box"><div class="stat-num" id="stTotalUsers">0</div><div class="stat-lbl">Total Users</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:#16a34a;" id="stActiveUsers">0</div><div class="stat-lbl">Active Users</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:#0284c7;" id="stDevices">0</div><div class="stat-lbl">Registered Devices</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:#dc2626;" id="stBlocked">0</div><div class="stat-lbl">Blocked / Expired</div></div>
+        <div class="stat-box"><div class="stat-num" style="color:#7c3aed;" id="stMouzas">0</div><div class="stat-lbl">Total Chaks (Mouzas)</div></div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="users">👥 Users &amp; Devices</button>
+        <button class="tab-btn" data-tab="mouzas">🗺️ Chaks (Mouzas) &amp; KML</button>
+      </div>
+
+      <!-- ==================== TAB 1: USERS & ACCESS ==================== -->
+      <div class="panel active" id="tab_users">
+        <div class="card">
+          <div class="card-title">
+            <span id="userFormTitle">➕ Add New User Access</span>
+            <button class="btn btn-light btn-sm" id="resetFormBtn" style="display:none;">Cancel Edit</button>
+          </div>
+          <form id="userForm">
+            <input type="hidden" id="editUserKey" />
+            <div class="form-grid">
+              <div class="field">
+                <label>Full Name *</label>
+                <input type="text" id="uName" placeholder="e.g. Ali Ahmad" required />
+              </div>
+              <div class="field">
+                <label>Gmail / Email *</label>
+                <input type="email" id="uEmail" placeholder="user@gmail.com" required />
+              </div>
+              <div class="field">
+                <label>Phone / WhatsApp</label>
+                <input type="text" id="uPhone" placeholder="0300-1234567" />
+              </div>
+              <div class="field">
+                <label>Account Password *</label>
+                <div style="display:flex;gap:6px;">
+                  <input type="text" id="uPass" placeholder="e.g. DM2026" required />
+                  <button type="button" class="btn btn-light btn-sm" id="genPassBtn" title="Generate">🎲</button>
+                </div>
+              </div>
+              <div class="field">
+                <label>Tehsil</label>
+                <input type="text" id="uTehsil" value="Sadiq Abad" />
+              </div>
+              <div class="field">
+                <label>Subscription Type</label>
+                <select id="uSubType">
+                  <option value="Monthly">Monthly (30 Days)</option>
+                  <option value="3 Months">3 Months (90 Days)</option>
+                  <option value="6 Months">6 Months (180 Days)</option>
+                  <option value="Yearly">Yearly (365 Days)</option>
+                  <option value="Lifetime">Lifetime (Unlimited)</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Start Date</label>
+                <input type="date" id="uStart" required />
+              </div>
+              <div class="field">
+                <label>End Date (Expiry)</label>
+                <input type="date" id="uEnd" required />
+              </div>
+            </div>
+
+            <div class="field" style="margin-top:8px;">
+              <label>Allowed Chaks (Mouzas)</label>
+              <div class="chak-checks" id="uMouzaChecks"></div>
+            </div>
+
+            <button type="submit" class="btn btn-green" id="saveUserBtn">💾 Save User Access</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>📋 All Registered Users &amp; Devices</span>
+            <input type="text" id="userSearchInput" placeholder="Search name, email or Device ID..." style="height:34px;padding:0 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:12.5px;width:230px;max-width:100%;" />
+          </div>
+          <div class="user-list" id="userList">
+            <div style="color:#64748b;font-size:13px;">Loading users...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ==================== TAB 2: MOUZAS & KML MANAGER ==================== -->
+      <div class="panel" id="tab_mouzas">
+        <div class="card">
+          <div class="card-title">
+            <span>☁️ Add / Update Chak (Mouza) from KML File</span>
+            <button class="btn btn-amber btn-sm" id="uploadDefaultsBtn">⚡ Upload Default 5 Chaks (158-P to 162-P)</button>
+          </div>
+          <div class="form-grid">
+            <div class="field">
+              <label>Chak / Mouza Name *</label>
+              <input type="text" id="kChakId" placeholder="e.g. 163-P" />
+            </div>
+            <div class="field">
+              <label>Halqa Name</label>
+              <input type="text" id="kHalqa" placeholder="e.g. Halqa 160-P" value="Halqa 160-P" />
+            </div>
+            <div class="field">
+              <label>Select .KML File *</label>
+              <input type="file" id="kFileInput" accept=".kml" style="padding-top:8px;" />
+            </div>
+          </div>
+          <div id="kmlPreviewBox" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12.5px;color:#1e40af;"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-green" id="saveKmlBtn" disabled>☁️ Save Chak to Cloud</button>
+            <button class="btn btn-primary" id="mergeKmlBtn" disabled>➕ Merge Murabbas into Existing Chak</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title"><span>🗺️ Active Chaks (Mouzas) in Cloud</span></div>
+          <div id="mouzaManagerList">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const FIREBASE_READY = window.isFirebaseConfigured && window.isFirebaseConfigured();
+    let auth = null, db = null;
+    let allUsers = {};
+    let allMouzas = {};
+    let parsedKmlMurabbas = null;
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(window._t);
+      window._t = setTimeout(() => t.classList.remove('show'), 2600);
+    }
+
+    function showAdminError(msg) {
+      const el = document.getElementById('adminAlert');
+      el.textContent = msg;
+      el.classList.add('show');
+    }
+
+    function emailToKey(email) {
+      return email.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+    }
+
+    function formatDate(iso) {
+      if (!iso) return '--';
+      const p = iso.split('-');
+      return p.length === 3 ? `${p[2]}-${p[1]}-${p[0]}` : iso;
+    }
+
+    function calcDays(endIso, subType) {
+      if (subType === 'Lifetime') return { text: 'Unlimited', expired: false };
+      if (!endIso) return { text: '0 days', expired: true };
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const end = new Date(endIso + 'T23:59:59');
+      const diff = Math.ceil((end - today) / 86400000);
+      return diff <= 0 ? { text: 'Expired', expired: true } : { text: `${diff} days`, expired: false };
+    }
+
+    function addDaysIso(startIso, days) {
+      const d = new Date(startIso + 'T00:00:00');
+      d.setDate(d.getDate() + days);
+      return d.toISOString().slice(0, 10);
+    }
+
+    // Init Firebase
+    if (!FIREBASE_READY) {
+      showAdminError('Firebase abhi configure nahi hai! Pehle firebase-config.js mein apna Firebase config paste karein, phir is page ko refresh karein.');
+      document.getElementById('adminLoginBtn').disabled = true;
+    } else {
+      if (!firebase.apps.length) firebase.initializeApp(window.DIGIMAP_CONFIG.firebase);
+      auth = firebase.auth();
+      db = firebase.database();
+
+      auth.onAuthStateChanged((user) => {
+        if (user) {
+          document.getElementById('adminAuth').classList.add('hidden');
+          document.getElementById('adminApp').classList.add('visible');
+          document.getElementById('adminSignedAs').textContent = `Signed in: ${user.email}`;
+          startLiveSync();
+        } else {
+          document.getElementById('adminApp').classList.remove('visible');
+          document.getElementById('adminAuth').classList.remove('hidden');
+        }
+      });
+    }
+
+    document.getElementById('adminLoginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!auth) return;
+      document.getElementById('adminAlert').classList.remove('show');
+      const btn = document.getElementById('adminLoginBtn');
+      btn.disabled = true; btn.textContent = 'Signing in...';
+      try {
+        await auth.signInWithEmailAndPassword(
+          document.getElementById('adminEmail').value.trim(),
+          document.getElementById('adminPass').value
+        );
+      } catch (err) {
+        showAdminError(err.message || 'Login failed. Check Admin Email & Password in Firebase Authentication.');
+      } finally {
+        btn.disabled = false; btn.textContent = 'Sign In to Admin Panel';
+      }
+    });
+
+    document.getElementById('adminLogoutBtn').addEventListener('click', () => auth && auth.signOut());
+
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById('tab_' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Live Firebase Sync
+    function startLiveSync() {
+      db.ref('users').on('value', (snap) => {
+        allUsers = snap.val() || {};
+        renderUsers();
+        updateStats();
+      });
+      db.ref('mouzas').on('value', (snap) => {
+        allMouzas = snap.val() || {};
+        renderMouzaCheckboxes();
+        renderMouzaManager();
+        updateStats();
+      });
+    }
+
+    function updateStats() {
+      const list = Object.values(allUsers);
+      let active = 0, blockedOrExp = 0, devices = 0;
+      list.forEach(u => {
+        if (u.deviceId) devices++;
+        const d = calcDays(u.endDate, u.subType);
+        if (u.blocked || d.expired) blockedOrExp++;
+        else active++;
+      });
+      document.getElementById('stTotalUsers').textContent = list.length;
+      document.getElementById('stActiveUsers').textContent = active;
+      document.getElementById('stDevices').textContent = devices;
+      document.getElementById('stBlocked').textContent = blockedOrExp;
+      document.getElementById('stMouzas').textContent = Object.keys(allMouzas).length;
+    }
+
+    // ==================== USER FORM ====================
+    const uStart = document.getElementById('uStart');
+    const uEnd = document.getElementById('uEnd');
+    const uSubType = document.getElementById('uSubType');
+
+    function setDefaultDates() {
+      const today = new Date().toISOString().slice(0, 10);
+      uStart.value = today;
+      recalcEndDate();
+    }
+
+    function recalcEndDate() {
+      const s = uStart.value || new Date().toISOString().slice(0, 10);
+      const map = { 'Monthly': 30, '3 Months': 90, '6 Months': 180, 'Yearly': 365, 'Lifetime': 36500 };
+      uEnd.value = addDaysIso(s, map[uSubType.value] || 30);
+    }
+
+    uSubType.addEventListener('change', recalcEndDate);
+    uStart.addEventListener('change', recalcEndDate);
+    setDefaultDates();
+
+    document.getElementById('genPassBtn').addEventListener('click', () => {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let p = 'DM';
+      for (let i = 0; i < 5; i++) p += chars[Math.floor(Math.random() * chars.length)];
+      document.getElementById('uPass').value = p;
+    });
+
+    function renderMouzaCheckboxes(selectedList = ['ALL']) {
+      const ids = Object.keys(allMouzas).length ? Object.keys(allMouzas).sort() : Object.keys(window.DEFAULT_MOUZAS || {}).sort();
+      const box = document.getElementById('uMouzaChecks');
+      const isAll = selectedList.includes('ALL');
+      box.innerHTML = `
+        <label class="chak-chip"><input type="checkbox" value="ALL" ${isAll ? 'checked' : ''} id="chkAllM" /> All Chaks</label>
+        ${ids.map(id => `<label class="chak-chip"><input type="checkbox" class="chkSingleM" value="${id}" ${!isAll && selectedList.includes(id) ? 'checked' : ''} /> ${id}</label>`).join('')}
+      `;
+      const chkAll = document.getElementById('chkAllM');
+      chkAll.addEventListener('change', () => {
+        if (chkAll.checked) box.querySelectorAll('.chkSingleM').forEach(c => c.checked = false);
+      });
+      box.querySelectorAll('.chkSingleM').forEach(c => {
+        c.addEventListener('change', () => { if (c.checked) chkAll.checked = false; });
+      });
+    }
+
+    function getCheckedMouzas() {
+      const chkAll = document.getElementById('chkAllM');
+      if (chkAll && chkAll.checked) return ['ALL'];
+      const arr = Array.from(document.querySelectorAll('.chkSingleM:checked')).map(c => c.value);
+      return arr.length ? arr : ['ALL'];
+    }
+
+    function resetUserForm() {
+      document.getElementById('userForm').reset();
+      document.getElementById('editUserKey').value = '';
+      document.getElementById('uEmail').readOnly = false;
+      document.getElementById('uTehsil').value = 'Sadiq Abad';
+      document.getElementById('userFormTitle').textContent = '➕ Add New User Access';
+      document.getElementById('saveUserBtn').textContent = '💾 Save User Access';
+      document.getElementById('resetFormBtn').style.display = 'none';
+      setDefaultDates();
+      renderMouzaCheckboxes(['ALL']);
+    }
+    document.getElementById('resetFormBtn').addEventListener('click', resetUserForm);
+
+    document.getElementById('userForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('uEmail').value.trim().toLowerCase();
+      const editKey = document.getElementById('editUserKey').value;
+      const key = editKey || emailToKey(email);
+      const existing = allUsers[key] || {};
+
+      const payload = {
+        name: document.getElementById('uName').value.trim(),
+        email: email,
+        phone: document.getElementById('uPhone').value.trim(),
+        password: document.getElementById('uPass').value.trim(),
+        tehsil: document.getElementById('uTehsil').value.trim() || 'Sadiq Abad',
+        subType: uSubType.value,
+        startDate: uStart.value,
+        endDate: uEnd.value,
+        allowedMouzas: getCheckedMouzas(),
+        blocked: existing.blocked || false,
+        deviceId: existing.deviceId || '',
+        deviceInfo: existing.deviceInfo || '',
+        lastSeen: existing.lastSeen || ''
+      };
+
+      await db.ref('users/' + key).set(payload);
+      showToast(editKey ? 'User updated successfully!' : 'New user created!');
+      resetUserForm();
+    });
+
+    // Render Users List
+    document.getElementById('userSearchInput').addEventListener('input', renderUsers);
+
+    function renderUsers() {
+      const container = document.getElementById('userList');
+      const q = (document.getElementById('userSearchInput').value || '').trim().toLowerCase();
+      const entries = Object.entries(allUsers).filter(([k, u]) => {
+        if (!q) return true;
+        return (u.name || '').toLowerCase().includes(q) ||
+               (u.email || '').toLowerCase().includes(q) ||
+               (u.phone || '').toLowerCase().includes(q) ||
+               (u.deviceId || '').toLowerCase().includes(q);
+      });
+
+      if (!entries.length) {
+        container.innerHTML = `<div style="color:#64748b;font-size:13px;">No users found. Upar form se pehla user add karein!</div>`;
+        return;
+      }
+
+      container.innerHTML = entries.map(([key, u]) => {
+        const d = calcDays(u.endDate, u.subType);
+        const statusCls = u.blocked ? 'st-blocked' : d.expired ? 'st-expired' : 'st-active';
+        const statusTxt = u.blocked ? 'Blocked' : d.expired ? 'Expired' : `Active (${d.text})`;
+        const allowed = Array.isArray(u.allowedMouzas) ? (u.allowedMouzas.includes('ALL') ? 'All Chaks' : u.allowedMouzas.join(', ')) : 'All Chaks';
+        const lastSeen = u.lastSeen ? new Date(u.lastSeen).toLocaleString() : 'Never';
+        return `
+          <div class="user-card">
+            <div class="user-top">
+              <div>
+                <div class="user-name">${u.name || 'Unnamed'} <span style="font-weight:500;font-size:12px;color:#64748b;">(${u.phone || 'No Phone'})</span></div>
+                <div class="user-email">${u.email} • Password: <b>${u.password}</b></div>
+              </div>
+              <span class="status-pill ${statusCls}">${statusTxt}</span>
+            </div>
+            <div class="user-meta">
+              <div>Plan: <b>${u.subType || 'Monthly'}</b></div>
+              <div>Validity: <b>${formatDate(u.startDate)} → ${u.subType === 'Lifetime' ? 'Lifetime' : formatDate(u.endDate)}</b></div>
+              <div>Device ID: <b>${u.deviceId || 'Not bound yet'}</b> ${u.deviceInfo ? `(${u.deviceInfo})` : ''}</div>
+              <div>Allowed: <b>${allowed}</b></div>
+              <div>Tehsil: <b>${u.tehsil || '--'}</b></div>
+              <div>Last Seen: <b>${lastSeen}</b></div>
+            </div>
+            <div class="user-actions">
+              <button class="btn btn-primary btn-sm" onclick="editUser('${key}')">✏️ Edit / Renew</button>
+              <button class="btn btn-amber btn-sm" onclick="resetDevice('${key}')">📱 Reset Device</button>
+              <button class="btn ${u.blocked ? 'btn-green' : 'btn-red'} btn-sm" onclick="toggleBlock('${key}')">${u.blocked ? '✅ Unblock' : '🚫 Block User'}</button>
+              <button class="btn btn-light btn-sm" onclick="copyLogin('${key}')">📋 Copy WhatsApp</button>
+              <button class="btn btn-light btn-sm" style="color:#dc2626;" onclick="deleteUser('${key}')">🗑️ Delete</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.editUser = function (key) {
+      const u = allUsers[key];
+      if (!u) return;
+      document.getElementById('editUserKey').value = key;
+      document.getElementById('uName').value = u.name || '';
+      document.getElementById('uEmail').value = u.email || '';
+      document.getElementById('uEmail').readOnly = true;
+      document.getElementById('uPhone').value = u.phone || '';
+      document.getElementById('uPass').value = u.password || '';
+      document.getElementById('uTehsil').value = u.tehsil || 'Sadiq Abad';
+      uSubType.value = u.subType || 'Monthly';
+      uStart.value = u.startDate || '';
+      uEnd.value = u.endDate || '';
+      renderMouzaCheckboxes(Array.isArray(u.allowedMouzas) ? u.allowedMouzas : ['ALL']);
+      document.getElementById('userFormTitle').textContent = `✏️ Editing: ${u.name}`;
+      document.getElementById('saveUserBtn').textContent = '💾 Update User';
+      document.getElementById('resetFormBtn').style.display = 'inline-flex';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.resetDevice = async function (key) {
+      if (!confirm('Reset Device ID? Purane phone se user foran logout ho jayega aur naye phone par login kar sakega.')) return;
+      await db.ref(`users/${key}/deviceId`).set('');
+      await db.ref(`users/${key}/deviceInfo`).set('');
+      showToast('Device ID reset & old session kicked!');
+    };
+
+    window.toggleBlock = async function (key) {
+      const u = allUsers[key];
+      if (!u) return;
+      await db.ref(`users/${key}/blocked`).set(!u.blocked);
+      showToast(!u.blocked ? 'User BLOCKED & disconnected!' : 'User UNBLOCKED!');
+    };
+
+    window.deleteUser = async function (key) {
+      if (!confirm('Delete this user permanently?')) return;
+      await db.ref(`users/${key}`).remove();
+      showToast('User deleted');
+    };
+
+    window.copyLogin = function (key) {
+      const u = allUsers[key];
+      if (!u) return;
+      const appUrl = location.href.replace(/admin\.html.*$/i, 'index.html');
+      const text = `*DigiMap Access Details*\nName: ${u.name}\nEmail: ${u.email}\nPassword: ${u.password}\nValid Till: ${u.subType === 'Lifetime' ? 'Lifetime' : formatDate(u.endDate)}\nApp Link: ${appUrl}\n_(Note: Yeh account sirf 1 mobile device par chalega)_`;
+      navigator.clipboard.writeText(text).then(() => showToast('WhatsApp login details copied!'));
+    };
+
+    // ==================== MOUZA / KML MANAGER ====================
+    document.getElementById('uploadDefaultsBtn').addEventListener('click', async () => {
+      if (!confirm('Upload default 5 Chaks (158-P to 162-P, 219 Murabbas) to Firebase Cloud?')) return;
+      await db.ref('mouzas').update(window.DEFAULT_MOUZAS);
+      showToast('All 5 default Chaks uploaded to Cloud!');
+    });
+
+    // Smart KML Parser (Supports Google Earth KML with Murabba + Killa folders without mixing them!)
+    document.getElementById('kFileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const preview = document.getElementById('kmlPreviewBox');
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const xml = new DOMParser().parseFromString(reader.result, 'text/xml');
+          const folders = Array.from(xml.getElementsByTagName('Folder'));
+          // Prefer the Murabba boundary folder if multiple folders exist
+          let targetPms = [];
+          const murabbaFolder = folders.find(f => {
+            const n = f.getElementsByTagName('name')[0];
+            const txt = n ? n.textContent.toLowerCase() : '';
+            return txt.includes('مربع حد') || txt.includes('murabba') || txt.includes('red lines');
+          });
+          if (murabbaFolder) {
+            targetPms = Array.from(murabbaFolder.getElementsByTagName('Placemark'));
+          } else {
+            // Fallback: take placemarks with LineString/Polygon whose name does NOT say Killa/قلعہ
+            targetPms = Array.from(xml.getElementsByTagName('Placemark')).filter(pm => {
+              const n = pm.getElementsByTagName('name')[0];
+              const txt = n ? n.textContent : '';
+              return !txt.includes('قلعہ') && !txt.toLowerCase().includes('killa');
+            });
+          }
+
+          const murabbas = {};
+          targetPms.forEach(pm => {
+            const nameEl = pm.getElementsByTagName('name')[0];
+            const coordsEl = pm.getElementsByTagName('coordinates')[0];
+            if (!nameEl || !coordsEl) return;
+            const pts = coordsEl.textContent.trim().split(/\s+/).map(s => {
+              const p = s.split(',');
+              return [Number(parseFloat(p[1]).toFixed(7)), Number(parseFloat(p[0]).toFixed(7))];
+            }).filter(p => !isNaN(p[0]) && !isNaN(p[1]));
+            if (pts.length >= 4) {
+              const name = nameEl.textContent.trim();
+              const safeKey = name.replace(/[\/.#$\[\]]/g, '_');
+              murabbas[safeKey] = { n: name, c: pts.slice(0, 4) };
+            }
+          });
+
+          const count = Object.keys(murabbas).length;
+          if (!count) {
+            preview.style.display = 'block';
+            preview.innerHTML = '⚠️ Is KML file mein koi valid 4-corner Murabba boundary nahi mili.';
+            parsedKmlMurabbas = null;
+            document.getElementById('saveKmlBtn').disabled = true;
+            document.getElementById('mergeKmlBtn').disabled = true;
+            return;
+          }
+          parsedKmlMurabbas = murabbas;
+          preview.style.display = 'block';
+          preview.innerHTML = `✅ Parsed <b>${count} Murabbas</b> (${count * 25} Killas) from <b>${file.name}</b>. Ready to save!`;
+          document.getElementById('saveKmlBtn').disabled = false;
+          document.getElementById('mergeKmlBtn').disabled = false;
+        } catch (err) {
+          showToast('Error reading KML file');
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    async function saveKmlToCloud(mergeMode) {
+      const id = document.getElementById('kChakId').value.trim().replace(/[.#$\[\]\/]/g, '-');
+      const halqa = document.getElementById('kHalqa').value.trim() || 'Halqa';
+      if (!id || !parsedKmlMurabbas) { showToast('Enter Chak Name & select a KML file first'); return; }
+
+      if (mergeMode && allMouzas[id] && allMouzas[id].murabbas) {
+        await db.ref(`mouzas/${id}/murabbas`).update(parsedKmlMurabbas);
+        showToast(`Merged Murabbas into ${id}!`);
+      } else {
+        await db.ref(`mouzas/${id}`).set({ id, halqa, murabbas: parsedKmlMurabbas });
+        showToast(`Chak ${id} saved to Cloud!`);
+      }
+      parsedKmlMurabbas = null;
+      document.getElementById('kFileInput').value = '';
+      document.getElementById('kmlPreviewBox').style.display = 'none';
+      document.getElementById('saveKmlBtn').disabled = true;
+      document.getElementById('mergeKmlBtn').disabled = true;
+    }
+
+    document.getElementById('saveKmlBtn').addEventListener('click', () => saveKmlToCloud(false));
+    document.getElementById('mergeKmlBtn').addEventListener('click', () => saveKmlToCloud(true));
+
+    function renderMouzaManager() {
+      const box = document.getElementById('mouzaManagerList');
+      const ids = Object.keys(allMouzas).sort();
+      if (!ids.length) {
+        box.innerHTML = `<div style="color:#64748b;font-size:13px;">Cloud mein abhi koi Chak nahi hai. Upar <b>⚡ Upload Default 5 Chaks</b> button dabayein!</div>`;
+        return;
+      }
+      box.innerHTML = ids.map(id => {
+        const m = allMouzas[id];
+        const mEntries = m.murabbas ? Object.entries(m.murabbas) : [];
+        mEntries.sort((a, b) => (a[1].n || '').localeCompare(b[1].n || '', undefined, { numeric: true }));
+        return `
+          <div class="mouza-card">
+            <div class="mouza-head">
+              <div>
+                <div style="font-size:15px;font-weight:800;">Chak ${id} <span style="font-size:12px;color:#64748b;font-weight:600;">(${m.halqa || ''})</span></div>
+                <div style="font-size:12px;color:#0d63b0;font-weight:700;">${mEntries.length} Murabbas • ${mEntries.length * 25} Killas</div>
+              </div>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-light btn-sm" onclick="toggleMurabbas('${id}')">📂 View / Delete Murabbas</button>
+                <button class="btn btn-red btn-sm" onclick="deleteChak('${id}')">🗑️ Delete Chak</button>
+              </div>
+            </div>
+            <div class="murabba-tags" id="mtags_${id}" style="display:none;">
+              ${mEntries.map(([mk, mv]) => `
+                <span class="m-tag">${mv.n} <button onclick="deleteMurabba('${id}','${mk}','${mv.n}')" title="Delete">✕</button></span>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    window.toggleMurabbas = function (id) {
+      const el = document.getElementById('mtags_' + id);
+      if (el) el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+    };
+
+    window.deleteMurabba = async function (chakId, mKey, mName) {
+      if (!confirm(`Delete Murabba ${mName} from Chak ${chakId}?`)) return;
+      await db.ref(`mouzas/${chakId}/murabbas/${mKey}`).remove();
+      showToast(`Deleted Murabba ${mName}`);
+    };
+
+    window.deleteChak = async function (id) {
+      if (!confirm(`Delete entire Chak ${id} from Cloud?`)) return;
+      await db.ref(`mouzas/${id}`).remove();
+      showToast(`Chak ${id} deleted`);
+    };
+  </script>
+</body>
+</html>
